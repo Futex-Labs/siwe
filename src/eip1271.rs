@@ -1,3 +1,4 @@
+use crate::VerificationError;
 use alloy::{
     primitives::{Address, Bytes, FixedBytes},
     providers::{
@@ -6,7 +7,6 @@ use alloy::{
     },
     sol,
 };
-use crate::VerificationError;
 
 pub type AlloyProvider = FillProvider<
     JoinFill<
