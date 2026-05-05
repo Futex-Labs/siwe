@@ -479,7 +479,7 @@ impl Message {
             Address::new(self.address),
             FixedBytes::from(hash.as_ref()),
             Bytes::copy_from_slice(sig),
-            &provider,
+            provider,
         )
         .await
     }
@@ -549,10 +549,10 @@ impl Message {
 
         #[cfg(feature = "alloy")]
         if let Err(e) = res {
-            if let Some(provider) = &opts.rpc_provider {
-                if self.verify_eip1271(sig, provider).await? {
-                    return Ok(());
-                }
+            if let Some(provider) = &opts.rpc_provider
+                && self.verify_eip1271(sig, provider).await?
+            {
+                return Ok(());
             }
             return Err(e);
         }
