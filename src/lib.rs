@@ -948,7 +948,7 @@ Resources:
             .unwrap();
             let opts = VerificationOpts {
                 rpc_provider: Some(
-                    ProviderBuilder::new().on_http("https://rpc.flashbots.net".parse().unwrap()),
+                    ProviderBuilder::new().connect_http("https://rpc.flashbots.net".parse().unwrap()),
                 ),
                 ..Default::default()
             };
