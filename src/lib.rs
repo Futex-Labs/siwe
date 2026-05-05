@@ -952,7 +952,7 @@ Resources:
                 ),
                 ..Default::default()
             };
-            assert!(message.verify(&signature, &opts).await.is_ok());
+            assert!(message.verify(&signature, &opts).await.inspect(|e| println!("{e:?}"))is_ok());
             println!("✅")
         }
     }
