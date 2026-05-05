@@ -948,11 +948,13 @@ Resources:
             .unwrap();
             let opts = VerificationOpts {
                 rpc_provider: Some(
-                    ProviderBuilder::new().connect_http("https://rpc.flashbots.net".parse().unwrap()),
+                    ProviderBuilder::new()
+                        .connect_http("https://eth.api.pocket.network".parse().unwrap()),
                 ),
                 ..Default::default()
             };
-            assert!(message.verify(&signature, &opts).await.inspect(|e| println!("{e:?}"))is_ok());
+            let res = message.verify(&signature, &opts).await;
+            assert!(res.is_ok());
             println!("✅")
         }
     }
