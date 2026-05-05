@@ -521,7 +521,7 @@ impl Message {
     ///
     /// message.verify(&signature, &verification_opts).await.unwrap();
     /// # }
-    /// ```
+    ///```
 
     pub async fn verify(
         &self,
