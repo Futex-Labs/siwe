@@ -170,9 +170,13 @@ pub enum ParseError {
 impl From<StrErr> for ParseError {
     fn from(val: StrErr) -> ParseError {
         match val {
-            StrErr::MismatchedLength(_) => ParseError::Format("The data is too large for the fixed buffer."),
+            StrErr::MismatchedLength(_) => {
+                ParseError::Format("The data is too large for the fixed buffer.")
+            }
             StrErr::Utf8Error(_) => ParseError::Format("Invalid utf-8."),
-            StrErr::InsufficientSpace => ParseError::Format("InsufficientSpace to append data to the buffer."),
+            StrErr::InsufficientSpace => {
+                ParseError::Format("InsufficientSpace to append data to the buffer.")
+            }
         }
     }
 }
