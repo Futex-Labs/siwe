@@ -12,7 +12,10 @@ pub struct TimeStamp(Str<64>, OffsetDateTime);
 
 impl From<OffsetDateTime> for TimeStamp {
     fn from(t: OffsetDateTime) -> Self {
-        Self(Str::new(&t.format(&Rfc3339).expect("Rfc3339 formatting works")), t)
+        Self(
+            Str::new(&t.format(&Rfc3339).expect("Rfc3339 formatting works")),
+            t,
+        )
     }
 }
 
