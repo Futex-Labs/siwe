@@ -1,6 +1,8 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg), feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
+#![no_std]
+extern crate alloc;
 
 #[cfg(feature = "alloy")]
 mod eip1271;
@@ -12,17 +14,24 @@ use crate::eip1271::AlloyProvider;
 use ::core::{
     convert::Infallible,
     fmt::{self, Display, Formatter},
-    str::FromStr,
 };
-
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 #[cfg(feature = "alloy")]
 use alloy::primitives::{Address, Bytes, FixedBytes};
+use core::{
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 use hex::FromHex;
 use http::uri::{Authority, InvalidUri};
 use iri_string::types::UriString;
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use sha3::{Digest, Keccak256};
-use std::convert::{TryFrom, TryInto};
+use sstr::{Str, StrErr};
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -78,7 +87,7 @@ pub struct Message {
     /// The Ethereum address performing the signing conformant to capitalization encoded checksum specified in EIP-55 where applicable.
     pub address: [u8; 20],
     /// A human-readable ASCII assertion that the user will sign, and it must not contain '\n' (the byte 0x0a).
-    pub statement: Option<String>,
+    pub statement: Option<Str<1024>>,
     /// An RFC 3986 URI referring to the resource that is the subject of the signing (as in the subject of a claim).
     pub uri: UriString,
     /// The current version of the message, which MUST be 1 for this specification.
@@ -86,7 +95,7 @@ pub struct Message {
     /// The EIP-155 Chain ID to which the session is bound, and the network where Contract Accounts MUST be resolved.
     pub chain_id: u64,
     /// A randomized token typically chosen by the relying party and used to prevent replay attacks, at least 8 alphanumeric characters.
-    pub nonce: String,
+    pub nonce: Str<17>,
     /// The ISO 8601 datetime string of the current time.
     pub issued_at: TimeStamp,
     /// The ISO 8601 datetime string that, if present, indicates when the signed authentication message is no longer valid.
@@ -94,7 +103,7 @@ pub struct Message {
     /// The ISO 8601 datetime string that, if present, indicates when the signed authentication message will become valid.
     pub not_before: Option<TimeStamp>,
     /// An system-specific identifier that may be used to uniquely refer to the sign-in request.
-    pub request_id: Option<String>,
+    pub request_id: Option<Str<64>>,
     /// A list of information or references to information the user wishes to have resolved as part of authentication by the relying party. They are expressed as RFC 3986 URIs separated by "\n- " where \n is the byte 0x0a.
     pub resources: Vec<UriString>,
 }
@@ -152,10 +161,16 @@ pub enum ParseError {
     TimeStamp(#[from] time::Error),
     #[error(transparent)]
     /// Chain ID is non-conformant.
-    ParseIntError(#[from] std::num::ParseIntError),
+    ParseIntError(#[from] core::num::ParseIntError),
     #[error(transparent)]
     /// Infallible variant.
     Never(#[from] Infallible),
+}
+
+impl Into<ParseError> for StrErr {
+    fn into(self) -> ParseError {
+        todo!()
+    }
 }
 
 fn tagged<'a>(tag: &'static str, line: Option<&'a str>) -> Result<&'a str, ParseError> {
@@ -201,19 +216,19 @@ impl FromStr for Message {
 
         // Skip the new line:
         lines.next();
-        let statement = match lines.next() {
+        let statement: Option<Str<1024>> = match lines.next() {
             None => return Err(ParseError::Format("No lines found after address")),
             Some("") => None,
             Some(s) => {
                 lines.next();
-                Some(s.to_string())
+                Some(Str::from_str(s).map_err(|_| ParseError::Format("statement is too large"))?)
             }
         };
 
         let uri = parse_line(URI_TAG, lines.next())?;
         let version = parse_line(VERSION_TAG, lines.next())?;
         let chain_id = parse_line(CHAIN_TAG, lines.next())?;
-        let nonce = parse_line(NONCE_TAG, lines.next()).and_then(|nonce: String| {
+        let nonce = parse_line(NONCE_TAG, lines.next()).and_then(|nonce: Str<17>| {
             if nonce.len() < 8 {
                 Err(ParseError::Format("Nonce must be longer than 8 characters"))
             } else {
@@ -241,7 +256,10 @@ impl FromStr for Message {
         let request_id = match tag_optional(RID_TAG, line)? {
             Some(rid) => {
                 line = lines.next();
-                Some(rid.into())
+                Some(
+                    Str::<64>::from_str(rid)
+                        .map_err(|_| ParseError::Format("request id is too large"))?,
+                )
             }
             None => None,
         };
@@ -249,7 +267,7 @@ impl FromStr for Message {
         let resources = match line {
             Some(RES_TAG) => lines.map(|s| parse_line("- ", Some(s))).collect(),
             Some(_) => Err(ParseError::Format("Unexpected Content")),
-            None => Ok(vec![]),
+            None => Ok(Vec::new()),
         }?;
 
         Ok(Message {
@@ -341,7 +359,7 @@ typed_builder_doc! {
         /// Expected domain field.
         pub domain: Option<Authority>,
         /// Expected nonce field.
-        pub nonce: Option<String>,
+        pub nonce: Option<Str<17>>,
         /// Datetime for which the message should be valid at.
         pub timestamp: Option<OffsetDateTime>,
         #[cfg(feature = "alloy")]
@@ -514,7 +532,7 @@ impl Message {
     ///
     /// let verification_opts = VerificationOpts {
     ///     domain: Some("localhost:4361".parse().unwrap()),
-    ///     nonce: Some("kEWepMt9knR6lWJ6A".into()),
+    ///     nonce: Some(sstr::Str::new("kEWepMt9knR6lWJ6A")),
     ///     timestamp: Some(OffsetDateTime::parse("2021-12-08T00:00:00Z", &Rfc3339).unwrap()),
     ///     ..Default::default()
     /// };
@@ -697,12 +715,13 @@ const RES_TAG: &str = "Resources:";
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use super::*;
     #[cfg(feature = "alloy")]
     use alloy::providers::ProviderBuilder;
-    use time::format_description::well_known::Rfc3339;
-
-    use super::*;
     use std::convert::TryInto;
+    use std::{dbg, print, println};
+    use time::format_description::well_known::Rfc3339;
 
     #[test]
     fn parsing() {
@@ -860,7 +879,7 @@ Resources:
             },
             request_id: fields
                 .get("requestId")
-                .map(|e| e.as_str().unwrap().to_string()),
+                .map(|e| Str::<64>::new(e.as_str().unwrap())),
             resources: fields
                 .get("resources")
                 .map(|e| {
@@ -925,6 +944,7 @@ Resources:
                 timestamp,
                 ..Default::default()
             };
+
             assert!(message.verify(&signature, &opts).await.is_ok());
             println!("✅")
         }
@@ -984,7 +1004,7 @@ Resources:
                 .unwrap()
                 .get("matchNonce")
                 .and_then(|match_nonce| match_nonce.as_str())
-                .map(|n| n.to_string());
+                .map(|n| Str::new(n));
             let timestamp = fields
                 .as_object()
                 .unwrap()

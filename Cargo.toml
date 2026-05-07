@@ -25,6 +25,7 @@ rand = "0.10.1"
 serde = { version = "1.0.228", optional = true }
 typed-builder = { version = "0.23.0", optional = true }
 alloy = { version = "2.0", optional = true, features = ["providers", "sol-types", "contract"]}
+sstr = { git = "https://github.com/Futex-Labs/Stack-String", rev = "80e2ca8972abe1b9d27b4527c67609e31761be46" }
 
 [dev-dependencies]
 serde_json = "1.0"

@@ -97,7 +97,7 @@ Issued At: 2021-12-07T18:28:18.807Z"#;
 
     let verification_opts = VerificationOpts {
         domain: Some("localhost:4361".parse().unwrap()),
-        nonce: Some("kEWepMt9knR6lWJ6A".into()),
+        nonce: Some(sstr::Str::new("kEWepMt9knR6lWJ6A")),
         timestamp: Some(OffsetDateTime::parse("2021-12-08T00:00:00Z", &Rfc3339).unwrap()),
         ..Default::default()
     };

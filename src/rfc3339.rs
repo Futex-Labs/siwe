@@ -3,15 +3,16 @@ use core::{
     fmt::{self, Display, Formatter},
     str::FromStr,
 };
+use sstr::Str;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Wrapper for [OffsetDateTime], meant to enable transitivity of deserialisation and serialisation.
-pub struct TimeStamp(String, OffsetDateTime);
+pub struct TimeStamp(Str<64>, OffsetDateTime);
 
 impl From<OffsetDateTime> for TimeStamp {
     fn from(t: OffsetDateTime) -> Self {
-        Self(t.format(&Rfc3339).expect("Rfc3339 formatting works"), t)
+        Self(Str::new(&t.format(&Rfc3339).expect("Rfc3339 formatting works")), t)
     }
 }
 
@@ -31,7 +32,7 @@ impl FromStr for TimeStamp {
     type Err = time::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.into(), OffsetDateTime::parse(s, &Rfc3339)?))
+        Ok(Self(Str::new(s), OffsetDateTime::parse(s, &Rfc3339)?))
     }
 }
 
